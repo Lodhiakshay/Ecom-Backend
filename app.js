@@ -19,8 +19,7 @@ connection()
 const userRoutes = require("./src/User/routes/user.route")
 const ApiError = require("./src/utils/ApiError")
 
-// app.use("/api/v1/user", userRoutes)
-app.use(userRoutes)
+app.use("/api/v1/user", userRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {

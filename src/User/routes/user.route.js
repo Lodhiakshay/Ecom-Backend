@@ -4,6 +4,7 @@ const userController = require("../controllers/user.controller")
 
 
 router.post("/register", userController.register)
+router.post("/verifyOtp", userController.verifyOtp)
 
 
 module.exports = router

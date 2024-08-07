@@ -40,5 +40,28 @@ const userController = {
         return res.status(201).json(new ApiResponse(200, newUser, `OTP send to your email ${email}`))
     }),
 
+    // Verify Otp
+    verifyOtp: asyncHandler(async (req, res) => {
+        const { email, otp } = req.body
+        
+        const existEmail = await User.findOne({ email })
+        
+        if (!existEmail) {
+            return res.status(400).json(new ApiError(400, "Email not exists"))
+        }
+
+        if (existEmail.otp === otp) {
+            // Invalidate the otp after successfull verification
+            existEmail.otp = null
+            await existEmail.save();
+
+            res.status(200).json(new ApiResponse(200,existEmail, "Otp verified successfully" ))
+        } else {
+            return res.status(400).json(new ApiError(400, "Invalid Otp"))
+        }
+    })
+
+    // Resend Otp
+
 }
 module.exports = userController
