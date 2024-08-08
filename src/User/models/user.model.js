@@ -17,6 +17,7 @@ const addresSchema = ({
 })
 
 const userSchema = new mongoose.Schema({
+    profileImage: String,
     firstName: { type: String },
     lastName: { type: String },
     mobileNumber: {
@@ -58,7 +59,7 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 // Hast the password before saving
-userSchema.pre("save", async function(next) {
+userSchema.pre("save", async function (next) {
     if (!this.isModified("password"))
         return next();
 
@@ -72,19 +73,19 @@ userSchema.pre("save", async function(next) {
 })
 
 // Method to verify if the entered password is correct
-userSchema.methods.isPasswordCorrect = async function(password) {
+userSchema.methods.isPasswordCorrect = async function (password) {
     return await bycrypt.compare(password, this.password)
 }
 
 // Generate tocken
-userSchema.methods.generateToken = function() {
+userSchema.methods.generateToken = function () {
     return jwt.sign({
-            _id: this._id,
-            email: this.email,
-        },
+        _id: this._id,
+        email: this.email,
+    },
         process.env.JWT_SECRET, {
-            expiresIn: process.env.TOKEN_EXPIRY
-        }
+        expiresIn: process.env.TOKEN_EXPIRY
+    }
     )
 }
 
