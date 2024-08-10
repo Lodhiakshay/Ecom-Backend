@@ -1,118 +1,220 @@
-const User = require("../models/user.model")
-const asyncHandler = require("../../utils/asyncHandeler")
-const ApiError = require("../../utils/ApiError")
-const ApiResponse = require("../../utils/ApiResponse")
-const { sendOtpByEmail, generateOTP } = require("../../utils/sendEmail")
-
+const User = require("../models/user.model");
+const asyncHandler = require("../../utils/asyncHandeler");
+const ApiError = require("../../utils/ApiError");
+const ApiResponse = require("../../utils/ApiResponse");
+const { sendOtpByEmail, generateOTP } = require("../../utils/sendEmail");
+const uploadToCloudinary = require("../../utils/cloudinary");
 
 const userController = {
+  // Register new User
+  register: asyncHandler(async (req, res) => {
+    // Required fields
+    const { firstName, lastName, email, password } = req.body;
 
-    // Register new User
-    register: asyncHandler(async (req, res) => {
+    // is user Exist
+    const existUser = await User.findOne({ email });
 
-        // Required fields
-        const { firstName, lastName, email, password } = req.body
+    if (existUser) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Email allready exists, please login"));
+    }
 
-        // is user Exist
-        const existUser = await User.findOne({ email })
+    const otp = generateOTP();
 
-        if (existUser) {
-            return res.status(400).json(new ApiError(400, "Email allready exists, please login"))
-        }
+    // Register User
+    const newUser = await User.create({
+      firstName,
+      lastName,
+      email,
+      password,
+      otp,
+    });
 
-        const otp = generateOTP()
+    sendOtpByEmail(email, otp);
 
-        // Register User
-        const newUser = await User.create({
-            firstName,
-            lastName,
-            email,
-            password,
-            otp
-        })
+    if (!newUser) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Got an error while register"));
+    }
 
-        sendOtpByEmail(email, otp)
+    return res
+      .status(201)
+      .json(new ApiResponse(200, newUser, `OTP send to your email ${email}`));
+  }),
 
-        if (!newUser) {
-            return res.status(400).json(new ApiError(400, "Got an error while register"))
-        }
+  // Verify Otp
+  verifyOtp: asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
 
-        return res.status(201).json(new ApiResponse(200, newUser, `OTP send to your email ${email}`))
-    }),
+    const existEmail = await User.findOne({ email });
 
-    // Verify Otp
-    verifyOtp: asyncHandler(async (req, res) => {
-        const { email, otp } = req.body
+    if (!existEmail) {
+      return res.status(400).json(new ApiError(400, "Email not exists"));
+    }
 
-        const existEmail = await User.findOne({ email })
+    if (existEmail.otp === otp) {
+      // Invalidate the otp after successfull verification
+      existEmail.otp = null;
+      existEmail.isRegisterd = true;
+      await existEmail.save();
 
-        if (!existEmail) {
-            return res.status(400).json(new ApiError(400, "Email not exists"))
-        }
+      res
+        .status(200)
+        .json(new ApiResponse(200, existEmail, "Otp verified successfully"));
+    } else {
+      return res.status(400).json(new ApiError(400, "Invalid Otp"));
+    }
+  }),
 
-        if (existEmail.otp === otp) {
-            // Invalidate the otp after successfull verification
-            existEmail.otp = null
-            existEmail.isRegisterd = true
-            await existEmail.save();
+  // Resend Otp
+  reSendOtp: asyncHandler(async (req, res) => {
+    const { email } = req.body;
 
-            res.status(200).json(new ApiResponse(200, existEmail, "Otp verified successfully"))
-        } else {
-            return res.status(400).json(new ApiError(400, "Invalid Otp"))
-        }
-    }),
+    const existUser = await User.findOne({ email });
 
-    // Resend Otp
-    reSendOtp: asyncHandler(async (req, res) => {
-        const { email } = req.body
+    if (!existUser) {
+      return res.status(400).json(new ApiError(400, "Email not exists"));
+    }
 
-        const existUser = await User.findOne({ email })
+    const otp = generateOTP();
 
-        if (!existUser) {
-            return res.status(400).json(new ApiError(400, "Email not exists"))
-        }
+    existUser.otp = otp;
+    await existUser.save();
 
-        const otp = generateOTP();
+    sendOtpByEmail(email, otp);
 
-        existUser.otp = otp
-        await existUser.save();
+    return res
+      .status(200)
+      .json(new ApiResponse(200, existUser, "Otp resent successfully"));
+  }),
 
-        sendOtpByEmail(email, otp)
+  // Login User
+  login: asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
 
-        return res.status(200).json(new ApiResponse(200, existUser, "Otp resent successfully"))
+    // check exist User with given email
+    const existUser = await User.findOne({
+      email,
+    });
 
-    }),
+    if (!existUser) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Invalid Email, Please register first"));
+    } else if (!existUser.isRegisterd) {
+      return res
+        .status(400)
+        .json(
+          new ApiError(400, "Please verify your OTP and complete your signup")
+        );
+    }
 
-    // Login User
-    login: asyncHandler(async (req, res) => {
+    const isPasswordValid = existUser.isPasswordCorrect(password);
 
-        const { email, password } = req.body
+    if (!isPasswordValid) {
+      return res
+        .status(400)
+        .json(new ApiError(400, "Please enter correct password"));
+    }
 
-        // check exist User with given email
-        const existUser = await User.findOne({
-            email
-        })
+    const token = existUser.generateToken();
 
-        if (!existUser) {
-            return res.status(400).json(new ApiError(400, "Invalid Email, Please register first"))
-        } else if (!existUser.isRegisterd) {
-            return res.status(400).json(new ApiError(400, "Please verify your OTP and complete your signup"))
-        }
-
-        const isPasswordValid = existUser.isPasswordCorrect(password)
-
-        if (!isPasswordValid) {
-            return res.status(400).json(new ApiError(400, "Please enter correct password")
-            )
-        }
-
-        const token = existUser.generateToken()
-
-        return res.status(200).json(
-            new ApiResponse(200, { ...existUser.toObject(), token }, "Logged in successfully")
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          { ...existUser.toObject(), token },
+          "Logged in successfully"
         )
+      );
+  }),
 
-    })
+  // Update profile
+  updateProfile: asyncHandler(async (req, res) => {
+    const id = req.user._id;
 
-}
-module.exports = userController
+    // console.log("id", id)
+
+    //  data for update
+    const {
+      firstName,
+      lastName,
+      age,
+      gender,
+      address,
+      mobileNumber,
+      email,
+      altMobileNumber,
+    } = req.body;
+
+    // Email mobile should be unique
+    if (email || mobileNumber) {
+      const query = [];
+
+      if (email) {
+        query.push({ email });
+      }
+      if (mobileNumber) {
+        query.push({ mobileNumber });
+      }
+
+      if (query.length > 0) {
+        const existUser = await User.findOne({
+          _id: { $ne: id },
+          $or: query,
+        });
+        if (existUser) {
+          const conflictField =
+            existUser.email === email ? "email" : "mobileNumber";
+
+          return res
+            .status(400)
+            .json(
+              new ApiError(
+                400,
+                `User already exists with this ${conflictField}`
+              )
+            );
+        }
+      }
+    }
+
+    let profileImage;
+
+    // console.log("req.file", req.file)
+
+    if (req.file) {
+      profileImage = await uploadToCloudinary(req.file?.path);
+    }
+
+    // console.log("path", profileImage)
+    const payload = {
+      firstName,
+      lastName,
+      age,
+      gender,
+      address,
+      mobileNumber,
+      altMobileNumber,
+      profileImage,
+      email,
+    };
+
+    const updatedUser = await User.findByIdAndUpdate(id, payload, {
+      new: true,
+    });
+
+    // console.log("User", updatedUser)
+
+    if (!updatedUser) {
+      return res.status(400).json(new ApiError(400, "Profile not updated"));
+    }
+    res
+      .status(200)
+      .json(new ApiResponse(200, updatedUser, "Profile updated successfully"));
+  }),
+};
+module.exports = userController;
