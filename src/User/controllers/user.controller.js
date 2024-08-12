@@ -97,7 +97,7 @@ const userController = {
     // check exist User with given email
     const existUser = await User.findOne({
       email,
-    });
+    }).select("+password");
 
     if (!existUser) {
       return res

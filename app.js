@@ -17,9 +17,10 @@ app.use(bodyParser.json());
 connection();
 
 const userRoutes = require("./src/User/routes/user.route");
+const productRoute = require("./src/User/routes/product.routes")
 const ApiError = require("./src/utils/ApiError");
 
-app.use("/api/v1/user", userRoutes);
+app.use("/api/v1/user", userRoutes, productRoute);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
