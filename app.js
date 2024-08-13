@@ -2,9 +2,11 @@ require("dotenv").config();
 const express = require("express");
 const connection = require("./src/db/dbConnection");
 const { createServer } = require("http");
+const cors = require("cors");
 const bodyParser = require("body-parser");
 
 const app = express();
+app.use(cors());
 
 const server = createServer(app);
 
@@ -17,7 +19,7 @@ app.use(bodyParser.json());
 connection();
 
 const userRoutes = require("./src/User/routes/user.route");
-const productRoute = require("./src/User/routes/product.routes")
+const productRoute = require("./src/User/routes/product.routes");
 const ApiError = require("./src/utils/ApiError");
 
 app.use("/api/v1/user", userRoutes, productRoute);

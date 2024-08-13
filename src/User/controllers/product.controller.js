@@ -18,7 +18,7 @@ const productController = {
       // Loop through each file and upload to Cloudinary
       for (const file of req.files) {
         const imageUrl = await uploadToCloudinary(file.path, "Product-Images");
-        productImages.push(imageUrl); // Ensure each imageUrl is pushed as a string
+        productImages.push(imageUrl);
       }
     }
 
