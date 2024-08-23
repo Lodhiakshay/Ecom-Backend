@@ -136,7 +136,7 @@ const userController = {
   updateProfile: asyncHandler(async (req, res) => {
     const id = req.user._id;
 
-    // console.log("id", id)
+    // console.log("id", id);
 
     //  data for update
     const {
