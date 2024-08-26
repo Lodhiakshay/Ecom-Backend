@@ -111,6 +111,10 @@ const userController = {
         );
     }
 
+    if (!password) {
+      return res.status(400).json(new ApiError(400, "Password required"));
+    }
+
     const isPasswordValid = existUser.isPasswordCorrect(password);
 
     if (!isPasswordValid) {
