@@ -130,11 +130,9 @@ const userController = {
 
     const token = existUser.generateToken();
 
-    // Send the token as a cookie
-    res.cookie("token", token, cookieOptions);
-
     return res
       .status(200)
+      .cookie("token", token, cookieOptions)
       .json(
         new ApiResponse(
           200,
