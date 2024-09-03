@@ -123,7 +123,15 @@ const userController = {
         .json(new ApiError(400, "Please enter correct password"));
     }
 
+    const cookieOptions = {
+      httpOnly: true,
+      secure: true,
+    };
+
     const token = existUser.generateToken();
+
+    // Send the token as a cookie
+    res.cookie("token", token, cookieOptions);
 
     return res
       .status(200)

@@ -10,6 +10,13 @@ const productSchema = new mongoose.Schema(
     detaile: { type: String },
     rating: { type: Number },
     isAvailable: { type: Boolean, default: true },
+    review: [
+      {
+        userId: { type: mongoose.Types.ObjectId, ref: "User" },
+        text: String,
+        rating: Number,
+      },
+    ],
   },
   { timestamps: true }
 );

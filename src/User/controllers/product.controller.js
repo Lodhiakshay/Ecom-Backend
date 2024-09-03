@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Product = require("../models/product.model");
 const asyncHandler = require("../../utils/asyncHandeler");
 const ApiError = require("../../utils/ApiError");
@@ -70,30 +71,82 @@ const productController = {
     const { id } = req.params; // for single product detail
 
     if (id) {
-      const product = await Product.findById(id)
-        .select("-createdAt -updatedAt")
-        .populate({
-          path: "userId",
-          select:
-            "-otp -mobileNumber -createdAt -updatedAt -wishList -address -isRegisterd",
-        });
-      if (!product) {
+      const product = await Product.aggregate([
+        { $match: { _id: new mongoose.Types.ObjectId(id) } },
+        // Lookup to populate userId field from User collection
+        {
+          $lookup: {
+            from: "users", // collection to join with
+            localField: "userId", // field from the Product collection
+            foreignField: "_id", // field from the User collection
+            as: "userDetails", // output array field
+          },
+        },
+
+        // Unwind the userDetails array to deconstruct the array into individual documents
+        { $unwind: "$userDetails" },
+
+        // Project to include/exclude specific fields
+        {
+          $project: {
+            createdAt: 0,
+            updatedAt: 0,
+            "userDetails.otp": 0,
+            "userDetails.mobileNumber": 0,
+            "userDetails.createdAt": 0,
+            "userDetails.updatedAt": 0,
+            "userDetails.wishList": 0,
+            "userDetails.address": 0,
+            "userDetails.isRegisterd": 0,
+          },
+        },
+      ]);
+
+      // Since aggregate returns an array, you may need to get the first element
+      const productDetail = product.length > 0 ? product[0] : null;
+      if (!productDetail) {
         return res.status(400).json(new ApiError(400, "Data not found"));
       }
       return res
         .status(200)
         .json(
-          new ApiResponse(200, product, "Product detail found successfully")
+          new ApiResponse(
+            200,
+            productDetail,
+            "Product detail found successfully"
+          )
         );
     }
 
-    const products = await Product.find()
-      .select("-createdAt -updatedAt")
-      .populate({
-        path: "userId",
-        select:
-          "-otp -mobileNumber -createdAt -updatedAt -wishList -address -isRegisterd",
-      });
+    const products = await Product.aggregate([
+      // Lookup to populate userId field from User collection
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "userDetails",
+        },
+      },
+
+      // Unwind the userDetails array to deconstruct the array into individual documents
+      { $unwind: "$userDetails" },
+
+      // Project to include/exclude specific fields
+      {
+        $project: {
+          createdAt: 0,
+          updatedAt: 0,
+          "userDetails.otp": 0,
+          "userDetails.mobileNumber": 0,
+          "userDetails.createdAt": 0,
+          "userDetails.updatedAt": 0,
+          "userDetails.wishList": 0,
+          "userDetails.address": 0,
+          "userDetails.isRegisterd": 0,
+        },
+      },
+    ]);
 
     if (!products) {
       return res.status(400).json(new ApiError(400, "Data not found"));
